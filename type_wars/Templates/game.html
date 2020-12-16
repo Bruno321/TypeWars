@@ -1,0 +1,342 @@
+{% extends "base.html "%}
+
+{% block head_content %}
+    <title>Game</title> 
+    <script src="https://code.createjs.com/1.0.0/createjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
+{% endblock %}
+
+{% block container %}
+    <style>
+        .peleadores{
+            width: 50px;
+            height: 50px;
+            background-color: red;
+            margin-left: 50px;
+        }
+        .health-bar{
+            width: 0;
+            height: 100%;
+            background-color: green;
+            transition: width .3s ease;
+        }
+        .healt-bar-container{
+            width: 400px;
+            height: 30px;
+
+        }
+    </style>
+
+    <div class="healt-bar-container">
+        <div class="health-bar" id="me"></div>
+    </div>
+
+    <br>
+
+    <div class="healt-bar-container">
+        <div class="health-bar" id="enemy"></div>
+    </div>
+
+    <b id="esperando">Esperando oponente...</b>
+
+    <br>
+    <input id="chat-message-input" type="text" size="100" style="display: none;"><br>
+    <input id="chat-message-submit" type="button" value="Send" style="display: none;">
+
+    <br>
+    
+
+
+    <div style="flex-direction: row; display: flex;">
+
+        <div class="peleadores" id="yo"><h3 id="yo_nombre"></h3></div>
+        <div class="peleadores" id="oponente"><h3 id="oponente_nombre">ASD</h3></div>
+    </div>
+<!-- TODO que no tenga q apretar enter, que haga la comparacion cada q escribe -->
+    <div class="words-to-write-container">
+        <b id="0"></b><br>
+        <b id="1"></b><br>
+        <b id="2"></b><br>
+        <b id="3"></b><br>
+        <b id="4"></b>
+    </div>
+
+    <canvas id="canvas-game" width="1000px" height="500px" style="background-color: #3e403f;"></canvas>
+
+    <script>
+        // TODO POR ALGUNA RAZON cuando recibes naves y llegan al limite se transportan a una
+        // esquina
+        var my_life = 100;
+        var enemy_life = 100;
+
+        var enemy_ships = new Array()
+        var my_ships = new Array()
+
+        var ship;
+        var enemyShip = false
+        var game_started = false
+        var canvas;
+        var stage;
+        var canvas_width;
+        const words = {{ words|safe }}
+        // todoeste codigo solo debra eejctuarse cuando encuentra partida
+        // {word} = 
+        words_to_display = []
+
+        for(i=0;i<5;i++){
+            words_to_display.push(words[i])
+            document.getElementById(`${i}`).innerHTML = words_to_display[i].word
+        }
+       
+
+        const roomName = "{{game_name}}"
+        const username = "{{username}}"
+
+        userToShow = username.split(['/'])
+        document.querySelector('#yo_nombre').innerHTML = userToShow[0]
+        
+
+
+        const gameSocket = new WebSocket(
+            'ws://'
+            + window.location.host // 'ws://localhost:8000/ws/game/test/9/'
+            + '/ws/game/test/'
+            + roomName
+            + '/'
+        )
+
+        gameSocket.onopen = function(e){
+            gameSocket.send(JSON.stringify({
+                'message':{
+                    'message': username
+                }
+            }))
+        }
+        
+        gameSocket.onmessage = function(e){
+            const data = JSON.parse(e.data)
+         
+
+            if(data.message.algoMas != true){
+                if(data.message.message != undefined){
+                    //Aqui ya se conectaron los y se inicia la partida para el primero
+                    // 'Guest' 'Usuario12'   'Guest' ' Usuario12'
+                    if(data.message.message != username){
+                        userToShow = data.message.message.split(['/'])
+
+                        document.querySelector('#oponente_nombre').innerHTML = userToShow[0]
+                        document.querySelector('#esperando').innerHTML = 'Oponente encontrado'
+                        
+                        gameSocket.send(JSON.stringify({
+                            'message': username
+                        }))
+                        startGame()
+
+                    }
+                }else{
+                    //Aqui ya se conectaron los dos y se inicia la partida para el segundo
+                    if(data.message != undefined && data.message != username){
+                        userToShow = data.message.split(['/'])
+                        document.querySelector('#oponente_nombre').innerHTML = userToShow[0]
+                        document.querySelector('#esperando').innerHTML = 'Oponente encontrado'
+                        startGame()
+                        
+                    }
+                }
+            }
+            
+
+            if(data.message.username != username && game_started){
+                position = data.message.message
+                enemy_ship = new createjs.Shape()
+                // que apunte pal otro lado
+                enemy_ship.graphics.beginFill("blue").drawPolyStar(0, 0, 30, 3, 0, 0)
+                enemy_ship.x = 900
+                enemy_ship.y = 100 * position   
+                enemyShip = true 
+                enemy_ships.push(enemy_ship)
+                stage.addChild(enemy_ship)
+                stage.update()
+                createjs.Ticker.addEventListener("tick", handleTick);
+            }
+
+            if(data.message.ship_hit && data.message.username != username && game_started){
+                my_life -= 10
+                document.getElementById('me').style.width = `${my_life}%`
+            }
+
+            // console.log(!data.message.victory,data.message.username != username)
+            if(data.message.victory == false && data.message.username != username && game_started){
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Perdiste tonto',
+                    text: 'ni modo'
+                })
+
+                setTimeout(()=>{
+                    window.location.href = '/'
+                },2000)
+            }
+            console.log(data)
+
+        }
+
+
+        gameSocket.onclose = function(e){
+            console.error('Chat socket closed unexpectedly')
+        }
+
+        document.querySelector('#chat-message-input').focus()
+        document.querySelector('#chat-message-input').onkeyup = function(e){
+            if(e.keyCode == 13){//If you press enter the click event will be triggered
+            
+                document.querySelector('#chat-message-submit').click()
+            }
+        }
+
+        document.querySelector('#chat-message-submit').onclick = function(e){
+            const messageInputDom = document.querySelector('#chat-message-input')
+            const message = messageInputDom.value
+
+            //la escribio bien
+            for(k=0;k<5;k++){
+                if (words_to_display[k].word == message){
+
+                    words_to_display[k] = words[i]
+                    document.getElementById(`${k}`).innerHTML = words_to_display[k].word
+
+                    ship = new createjs.Shape()
+                    // ship.graphics.beginFill('#540c1b').drawPolyStar(0, 0, 30, 3, 0, 360)
+                    ship.graphics.beginFill("#540c1b").drawPolyStar(0, 0, 30, 3, 0, 0)
+                    ship.x = 100
+                    ship.y = (k+1) * 100   
+                    enemyShip = false 
+                    my_ships.push(ship)
+                    stage.addChild(ship)
+                    stage.update()
+                    createjs.Ticker.addEventListener("tick", handleTick);
+
+                    gameSocket.send(JSON.stringify({
+                    'message': {
+                        message: k+1,
+                        username: username,
+                        algoMas: true
+                        }
+                    }))
+                    
+                    i++
+                    break
+                }
+            }
+
+           
+
+            messageInputDom.value = ''
+        }
+
+        cont = 3
+        var interval;
+
+        function startGame(){
+            startCountDown()
+        }
+
+        function startCountDown(){
+           
+            interval = setInterval(countDown,1000)    
+        }
+
+
+        function countDown(){
+            
+            if(cont==-1){
+                clearInterval(interval)
+                document.querySelector('#esperando').innerHTML = 'Matense gordos'
+                document.querySelector('#me').style.width = '100%'
+                document.querySelector('#enemy').style.width = '100%'
+
+                //Aqui ya empieza el juego
+               
+                
+                document.getElementById('chat-message-input').style.display = 'block'
+                document.getElementById('chat-message-submit').style.display = 'block'
+
+                game_started = true
+
+                canvas = document.getElementById('canvas-game')
+                stage = new createjs.Stage(canvas)
+                canvas_width = stage.canvas.width
+                
+                
+            }else{
+                document.querySelector('#esperando').innerHTML = cont
+                cont--
+            }
+        }
+
+//TODO agregar la otra y debugear
+        function handleTick(){
+            if(enemyShip || (enemy_ships.length > 0) ){  
+                for(pos in enemy_ships){
+                    //nave enemiga choco
+                    if(enemy_ships[pos].x <= 0){
+                        stage.removeChild(enemy_ships[pos])
+                        enemy_ships.splice(pos,1)
+                        //se envia el websocket o no? este es el espejo
+
+                    }else{
+                        enemy_ships[pos].x -= 3   
+                    }
+                }
+            }
+            if(my_ships.length >= 0){
+                for (pos2 in my_ships){
+                    //mi nave choco
+                    if(my_ships[pos2].x > canvas_width){
+                        stage.removeChild(my_ships[pos2])
+                        my_ships.splice(pos2,1)
+                        //se envia el websocket
+                        gameSocket.send(JSON.stringify({
+                            'message': {
+                                ship_hit: true,
+                                username: username,
+                                algoMas: true
+                            }
+                        }))
+                        enemy_life -= 10
+                        document.getElementById('enemy').style.width = `${enemy_life}%`
+                        if(enemy_life == 0){
+                            gameSocket.send(JSON.stringify({
+                            'message': {
+                                victory: false,
+                                username: username,
+                                algoMas: true
+                                }
+                            }))
+
+                            Swal.fire(
+                                'Ganaste',
+                                'noc q mas',
+                                'success'
+                            )
+
+                            setTimeout(()=>{
+                                window.location.href = '/'
+                            },2000)
+
+                        }
+                        
+                        
+                    }else{
+                        my_ships[pos2].x += 3
+                    }
+                }
+            }   
+            stage.update()
+        }
+
+        
+    </script>
+
+    
+{% endblock%}

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block container %}
+    <h1>Login</h1>
+
+    {{form.non_field_errors}}
+    <form action="#" method="POST">
+        {% csrf_token %}
+        {% for value in form %}
+            {{value}}
+        {% endfor %}
+        <input type="submit" value="login">
+    </form>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block head_content %}
+<title>TypeWars</title>
+{% endblock %}
+
+{% block container%}
+    <h1>HOLA</h1>
+
+
+
+    <form method="POST" action="">
+        {% csrf_token %}
+        <input type="submit" value="Play">
+    </form>
+
+    <input type="button" id="play-with-friend" value="Play with a friend">
+    <input type="button" id="play-alone" value="Play alone">
+
+    <script>
+        prueba = "{{game_name}}"
+        if(prueba){
+            window.location.pathname = `/game/test/${prueba}`
+        }
+    </script>
+{% endblock %}
