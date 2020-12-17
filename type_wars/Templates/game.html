@@ -66,6 +66,14 @@
     <canvas id="canvas-game" width="1000px" height="500px" style="background-color: #3e403f;"></canvas>
 
     <script>
+
+        
+        if (performance.navigation.type == 1) {
+            console.info( "This page is reloaded" );
+        } else {
+            console.info( "This page is not reloaded");
+        }
+
         // TODO POR ALGUNA RAZON cuando recibes naves y llegan al limite se transportan a una
         // esquina
         const win_close_code = 4000
@@ -109,6 +117,18 @@
             + '/'
         )
 
+        window.addEventListener('beforeunload',function(e){
+            gameSocket.send(JSON.stringify({
+                'message':{
+                    algoMas:true,
+                    quit: true
+                }
+            }))
+
+            gameSocket.close(lose_close_code)
+
+        })
+
         gameSocket.onopen = function(e){
             gameSocket.send(JSON.stringify({
                 'message':{
@@ -120,6 +140,19 @@
         gameSocket.onmessage = function(e){
             const data = JSON.parse(e.data)
          
+            if(data.message.quit){
+                Swal.fire(
+                    'Ganaste',
+                    'noc q mas',
+                    'success'
+                )
+
+                gameSocket.close(win_close_code)
+
+                setTimeout(()=>{
+                    window.location.href = '/'
+                },2000)
+            }
 
             if(data.message.algoMas != true){
                 if(data.message.message != undefined){
