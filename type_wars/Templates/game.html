@@ -69,7 +69,16 @@
 
         
         if (performance.navigation.type == 1) {
-            console.info( "This page is reloaded" );
+            Swal.fire({
+                icon: 'error',
+                title: 'Perdiste',
+                text: 'Recargar la pagina cuenta como abandono'
+            })
+
+            setTimeout(()=>{
+                window.location.href = '/'
+            },2000)
+            
         } else {
             console.info( "This page is not reloaded");
         }
@@ -117,7 +126,14 @@
             + '/'
         )
 
+        window.addEventListener('offline',function(e){
+            console.log('ya te desconectaste naco')
+        })
+
+
+
         window.addEventListener('beforeunload',function(e){
+
             gameSocket.send(JSON.stringify({
                 'message':{
                     algoMas:true,
@@ -143,7 +159,7 @@
             if(data.message.quit){
                 Swal.fire(
                     'Ganaste',
-                    'noc q mas',
+                    'Tu oponente abandono',
                     'success'
                 )
 
@@ -206,7 +222,7 @@
             if(data.message.victory == false && data.message.username != username && game_started){
                 Swal.fire({
                     icon: 'error',
-                    title: 'Perdiste tonto',
+                    title: 'Perdiste naco',
                     text: 'ni modo'
                 })
 
@@ -357,7 +373,7 @@
 
                             Swal.fire(
                                 'Ganaste',
-                                'noc q mas',
+                                'Derrotaste al naco',
                                 'success'
                             )
 
