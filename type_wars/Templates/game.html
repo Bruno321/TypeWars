@@ -199,7 +199,7 @@
             }
             
 
-            if(data.message.username != username && game_started){
+            if(data.message.username != username && game_started && data.message.ship_hit != true){
                 position = data.message.message
                 enemy_ship = new createjs.Shape()
                 // que apunte pal otro lado
@@ -208,6 +208,7 @@
                 enemy_ship.y = 100 * position   
                 enemyShip = true 
                 enemy_ships.push(enemy_ship)
+                console.log('nave enemiga añadida')
                 stage.addChild(enemy_ship)
                 stage.update()
                 createjs.Ticker.addEventListener("tick", handleTick);
@@ -335,7 +336,8 @@
         function handleTick(){
             if(enemyShip || (enemy_ships.length > 0) ){  
                 for(pos in enemy_ships){
-                    //nave enemiga choco
+                    //nave enemiga nos choco
+                    
                     if(enemy_ships[pos].x <= 0){
                         stage.removeChild(enemy_ships[pos])
                         enemy_ships.splice(pos,1)
@@ -353,6 +355,7 @@
                         stage.removeChild(my_ships[pos2])
                         my_ships.splice(pos2,1)
                         //se envia el websocket
+                        console.log('mi nave choco mando web')
                         gameSocket.send(JSON.stringify({
                             'message': {
                                 ship_hit: true,
